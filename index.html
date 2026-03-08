@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALIAI</title>
+  <style>
+    :root {
+      --bg: #f6f6f3;
+      --text: #1d1d1b;
+      --muted: #5d5d58;
+      --line: #d7d7d0;
+      --accent: #0f766e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, #ffffff 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, #ecece5 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+
+    main {
+      width: min(760px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(2px);
+      padding: clamp(1.4rem, 3vw, 2.3rem);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06);
+      animation: rise 500ms ease-out;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      margin: 0;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: .74rem;
+    }
+
+    h1 {
+      margin: .35rem 0 .5rem;
+      font-size: clamp(2rem, 6vw, 3rem);
+      line-height: 1;
+    }
+
+    .tagline {
+      margin: 0 0 1.3rem;
+      color: var(--muted);
+      max-width: 58ch;
+      line-height: 1.5;
+    }
+
+    .run {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fcfcfa;
+      padding: .9rem 1rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-x: auto;
+      white-space: nowrap;
+      margin: 0 0 1.3rem;
+    }
+
+    section + section { margin-top: 1rem; }
+
+    h2 {
+      margin: 0 0 .55rem;
+      font-size: 1rem;
+      color: var(--accent);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--text);
+    }
+
+    footer {
+      margin-top: 1.6rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      main { border-radius: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Welcome to ALIAI</p>
+    <h1>Clean old files fast.</h1>
+    <p class="tagline">
+      ALIAI scans your Documents, Pictures, Downloads, Desktop, and app folders to find files
+      you have not used in a while, then lets you move selected items to Trash.
+    </p>
+
+    <p class="run">python3 aliai.py --age 6m --limit 50</p>
+
+    <section>
+      <h2>Defaults</h2>
+      <ul>
+        <li>Scans: <code>~/Documents</code>, <code>~/Pictures</code>, <code>~/Downloads</code>, <code>~/Desktop</code></li>
+        <li>Apps: <code>~/Applications</code> and <code>/Applications</code></li>
+        <li>Age threshold: <code>180 days</code></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Useful Commands</h2>
+      <ul>
+        <li><code>python3 aliai.py</code> for a standard scan</li>
+        <li><code>python3 aliai.py --age 1y</code> for older files</li>
+        <li><code>python3 aliai.py --delete</code> to jump into deletion mode</li>
+        <li><code>python3 aliai.py --no-apps</code> to skip app bundle scanning</li>
+      </ul>
+    </section>
+
+    <footer>Minimal by design. Built for quick cleanup.</footer>
+  </main>
+</body>
+</html>
