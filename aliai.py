@@ -6,6 +6,27 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+DEFAULT_FOLDERS = [
+    str(Path.home() / "Documents"),
+    str(Path.home() / "Pictures"),
+    str(Path.home() / "Downloads"),
+    str(Path.home() / "Desktop"),
+]
+
+LARGE_SCAN_FOLDERS = DEFAULT_FOLDERS + [
+    str(Path.home() / "Movies"),
+    str(Path.home() / "Music"),
+    str(Path.home() / "Public"),
+]
+
+DEFAULT_APP_FOLDERS = [str(Path.home() / "Applications"), "/Applications"]
+
+TIME_PRESETS = {
+    "standard": 180,
+    "long": 365,
+    "very-long": 730,
+}
+
 
 @dataclass
 class FileCandidate:
@@ -13,6 +34,7 @@ class FileCandidate:
     size: int
     atime: float
     mtime: float
+    item_type: str = "file"
 
 
 def format_size(num_bytes: int) -> str:
@@ -59,6 +81,7 @@ def scan_folder(folder: Path, days_unused: int, include_hidden: bool) -> list[Fi
                         size=st.st_size,
                         atime=st.st_atime,
                         mtime=st.st_mtime,
+                        item_type="file",
                     )
                 )
 
@@ -95,6 +118,7 @@ def scan_apps_folder(folder: Path, days_unused: int, include_hidden: bool) -> li
                         size=st.st_size,
                         atime=st.st_atime,
                         mtime=st.st_mtime,
+                        item_type="software",
                     )
                 )
 
@@ -107,21 +131,26 @@ def scan_apps_folder(folder: Path, days_unused: int, include_hidden: bool) -> li
 
 def print_results(candidates: list[FileCandidate], limit: int) -> None:
     if not candidates:
-        print("No old files found with current settings.")
+        print("No old files or software found with current settings.")
         return
 
-    print("\nOld/unused files:")
-    print("Idx  Last Used    Size      File")
-    print("---  ----------   -------   ----")
+    print("\nOld/unused items:")
+    print("Idx  Type      Last Used    Size      Path")
+    print("---  --------  ----------   -------   ----")
 
     shown = candidates[:limit]
     for i, item in enumerate(shown, start=1):
         last_used_ts = item.atime
         last_used = datetime.fromtimestamp(last_used_ts).strftime("%Y-%m-%d")
-        print(f"{i:<3}  {last_used:<10}   {format_size(item.size):<8}  {item.path}")
+        print(f"{i:<3}  {item.item_type:<8}  {last_used:<10}   {format_size(item.size):<8}  {item.path}")
 
     total_size = sum(x.size for x in candidates)
-    print(f"\nFound {len(candidates)} files, total size: {format_size(total_size)}")
+    software_count = sum(1 for item in candidates if item.item_type == "software")
+    file_count = len(candidates) - software_count
+    print(
+        f"\nFound {len(candidates)} items "
+        f"({file_count} files, {software_count} software), total size: {format_size(total_size)}"
+    )
     if len(candidates) > limit:
         print(f"Showing first {limit}. Increase --limit to see more.")
 
@@ -278,18 +307,18 @@ def interactive_delete(candidates: list[FileCandidate], limit: int, enable_delet
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="aliAI: find old/unused files in your Documents, Pictures, Downloads, and Desktop folders."
+        description="aliAI: find old/unused files and software in your Documents, Pictures, Downloads, Desktop, and Applications folders."
     )
     parser.add_argument(
         "--folders",
         nargs="+",
-        default=[str(Path.home() / "Documents"), str(Path.home() / "Pictures"), str(Path.home() / "Downloads"), str(Path.home() / "Desktop")],
+        default=DEFAULT_FOLDERS,
         help="Folders to scan (default: ~/Documents ~/Pictures ~/Downloads ~/Desktop)",
     )
     parser.add_argument(
         "--app-folders",
         nargs="+",
-        default=[str(Path.home() / "Applications"), "/Applications"],
+        default=DEFAULT_APP_FOLDERS,
         help="App folders to scan for unused .app bundles (default: ~/Applications /Applications)",
     )
     parser.add_argument(
@@ -324,6 +353,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip scanning app bundles",
     )
+    parser.add_argument(
+        "--software-only",
+        action="store_true",
+        help="Scan only software (.app bundles) used a long time ago",
+    )
+    parser.add_argument(
+        "--large-scan",
+        action="store_true",
+        help="Scan more folders: adds ~/Movies ~/Music ~/Public to the standard scan",
+    )
+    parser.add_argument(
+        "--time-preset",
+        choices=sorted(TIME_PRESETS.keys()),
+        default=None,
+        help="Use a built-in age preset: standard=180d, long=1y, very-long=2y",
+    )
     return parser
 
 
@@ -331,6 +376,9 @@ def print_startup_commands() -> None:
     print("\nCommands:")
     print("- --folders <paths...>       Folders to scan (default: ~/Documents ~/Pictures ~/Downloads ~/Desktop)")
     print("- --app-folders <paths...>   App folders to scan (default: ~/Applications /Applications)")
+    print("- --software-only            Scan only software/app bundles")
+    print("- --large-scan               Scan more folders (Movies, Music, Public)")
+    print("- --time-preset <name>       Use standard, long, or very-long age presets")
     print("- --days <n>                 Age threshold in days (default: 180)")
     print("- --age <n|n[d|w|m|y]>       Flexible age, e.g. 30d, 12w, 6m, 2y")
     print("- --limit <n>                Max files shown (default: 100)")
@@ -344,30 +392,46 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    print("Welcome to ALIAI")
-
     if args.days < 0:
         parser.error("--days must be >= 0")
     if args.limit <= 0:
         parser.error("--limit must be > 0")
+    if args.software_only and args.no_apps:
+        parser.error("--software-only cannot be used with --no-apps")
+
+    if args.large_scan and args.folders != DEFAULT_FOLDERS:
+        parser.error("--large-scan cannot be used with custom --folders")
+    if args.age is not None and args.time_preset is not None:
+        parser.error("--age cannot be used with --time-preset")
+    if args.days != 180 and args.time_preset is not None:
+        parser.error("--days cannot be used with --time-preset")
 
     try:
-        days_unused = parse_age_to_days(args.age) if args.age is not None else args.days
+        if args.age is not None:
+            days_unused = parse_age_to_days(args.age)
+        elif args.time_preset is not None:
+            days_unused = TIME_PRESETS[args.time_preset]
+        else:
+            days_unused = args.days
     except ValueError as exc:
         parser.error(f"--age error: {exc}")
 
+    folders_to_scan = LARGE_SCAN_FOLDERS if args.large_scan else args.folders
+
+    print("Welcome to ALIAI")
     print_startup_commands()
 
     all_candidates: list[FileCandidate] = []
-    for folder in args.folders:
-        folder_path = Path(folder).expanduser().resolve()
-        print(f"Scanning: {folder_path}")
-        all_candidates.extend(scan_folder(folder_path, days_unused, args.include_hidden))
+    if not args.software_only:
+        for folder in folders_to_scan:
+            folder_path = Path(folder).expanduser().resolve()
+            print(f"Scanning files: {folder_path}")
+            all_candidates.extend(scan_folder(folder_path, days_unused, args.include_hidden))
 
     if not args.no_apps:
         for folder in args.app_folders:
             folder_path = Path(folder).expanduser().resolve()
-            print(f"Scanning apps: {folder_path}")
+            print(f"Scanning software: {folder_path}")
             all_candidates.extend(scan_apps_folder(folder_path, days_unused, args.include_hidden))
 
     all_candidates.sort(key=lambda c: c.atime)

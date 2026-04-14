@@ -119,15 +119,16 @@
     <h1>Clean old files fast.</h1>
     <p class="tagline">
       ALIAI scans your Documents, Pictures, Downloads, Desktop, and app folders to find files
-      you have not used in a while, then lets you move selected items to Trash.
+      and software you have not used in a while, then lets you move selected items to Trash.
     </p>
 
-    <p class="run">python3 aliai.py --age 6m --limit 50</p>
+    <p class="run">python3 aliai.py --large-scan --time-preset very-long --limit 50</p>
 
     <section>
       <h2>Defaults</h2>
       <ul>
         <li>Scans: <code>~/Documents</code>, <code>~/Pictures</code>, <code>~/Downloads</code>, <code>~/Desktop</code></li>
+        <li>Large scan adds: <code>~/Movies</code>, <code>~/Music</code>, <code>~/Public</code></li>
         <li>Apps: <code>~/Applications</code> and <code>/Applications</code></li>
         <li>Age threshold: <code>180 days</code></li>
       </ul>
@@ -138,6 +139,9 @@
       <ul>
         <li><code>python3 aliai.py</code> for a standard scan</li>
         <li><code>python3 aliai.py --age 1y</code> for older files</li>
+        <li><code>python3 aliai.py --large-scan</code> for a broader scan</li>
+        <li><code>python3 aliai.py --time-preset very-long</code> for a 2-year scan</li>
+        <li><code>python3 aliai.py --software-only --age 1y</code> to find old software only</li>
         <li><code>python3 aliai.py --delete</code> to jump into deletion mode</li>
         <li><code>python3 aliai.py --no-apps</code> to skip app bundle scanning</li>
       </ul>
