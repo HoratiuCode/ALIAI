@@ -1,30 +1,35 @@
 # ALIAI
 
-A simple CLI tool to find old files, old folders, and software you have not used for a long time, then optionally move selected items to Trash.
+ALIAI is a macOS cleanup CLI that scans for old or unused files, folders, and software, then lets you review and optionally move selected items to Trash.
 
-Before results are shown, ALIAI now builds a scan plan and displays a percentage loading bar so you can track progress from `0%` to `100%`.
+## Latest Modifications
 
-## Welcome Message
+- Added a live loading bar with progress from `0%` to `100%`
+- Added support for scanning old folders, not only files
+- Added software-focused scanning for unused `.app` bundles
+- Added `--large-scan` to inspect more user folders
+- Added `--system-scan` to inspect cache, log, and application support locations
+- Added `Type` and `Reason` columns in the results
+- Added longer scan presets with `--time-preset`
 
-When you start the program, it prints:
+## What ALIAI Can Scan
 
-`Welcome to ALIAI`
-
-## What It Scans by Default
+Default scan:
 
 - `~/Documents`
 - `~/Pictures`
 - `~/Downloads`
 - `~/Desktop`
-- Software/app bundles in `~/Applications` and `/Applications`
+- `~/Applications`
+- `/Applications`
 
-Use `--large-scan` to also scan:
+Large scan adds:
 
 - `~/Movies`
 - `~/Music`
 - `~/Public`
 
-Use `--system-scan` to also inspect:
+System scan adds:
 
 - `~/Library/Caches`
 - `~/Library/Logs`
@@ -33,14 +38,28 @@ Use `--system-scan` to also inspect:
 - `/Library/Logs`
 - `/Library/Application Support`
 
+## Progress Bar
+
+Before showing results, ALIAI prepares the scan and displays a live loading bar with percentage progress.
+
+Example:
+
+```text
+Scanning progress: [##########---------------] 40%
+```
+
+For small scans, the progress can move very quickly. For larger scans, it updates while the scan is running.
+
 ## Requirements
 
 - Python 3
-- macOS (uses `~/.Trash` for safe deletion)
+- macOS
+
+ALIAI uses `~/.Trash` so deleted items are moved to Trash instead of being permanently removed.
 
 ## Usage
 
-Run a standard scan:
+Standard scan:
 
 ```bash
 python3 aliai.py
@@ -52,46 +71,44 @@ Show help:
 python3 aliai.py --help
 ```
 
-Scan files older than 6 months:
+Scan older items:
 
 ```bash
 python3 aliai.py --age 6m
+python3 aliai.py --age 1y --limit 50
+python3 aliai.py --age 3y
 ```
 
-Scan only software you have not used for a long time:
+Scan only software:
 
 ```bash
 python3 aliai.py --software-only --age 1y
 ```
 
-Scan old folders too:
+Include old folders:
 
 ```bash
 python3 aliai.py --scan-folders --age 1y
 ```
 
-Run a larger scan across more folders:
+Run a broader user scan:
 
 ```bash
 python3 aliai.py --large-scan
 ```
 
-Scan broader user and system cleanup locations:
+Run a broader user and system cleanup scan:
 
 ```bash
-python3 aliai.py --system-scan --time-preset very-long --limit 100
+python3 aliai.py --system-scan --scan-folders --time-preset very-long --limit 100
 ```
 
-Use a longer built-in time preset:
+Use built-in time presets:
 
 ```bash
+python3 aliai.py --time-preset standard
+python3 aliai.py --time-preset long
 python3 aliai.py --time-preset very-long
-```
-
-Scan files older than 1 year and show only first 50:
-
-```bash
-python3 aliai.py --age 1y --limit 50
 ```
 
 Enable interactive deletion:
@@ -100,7 +117,7 @@ Enable interactive deletion:
 python3 aliai.py --delete
 ```
 
-Skip app bundle scanning:
+Skip software scanning:
 
 ```bash
 python3 aliai.py --no-apps
@@ -108,28 +125,44 @@ python3 aliai.py --no-apps
 
 ## Output
 
-Results show `Type` and `Reason` columns so you can quickly see whether each match is a file, folder, or software item.
+ALIAI shows results with:
 
-During scanning, the CLI shows a progress bar with a percentage and the current path being scanned.
+- `Type`
+- `Reason`
+- `Last Used`
+- `Size`
+- `Path`
 
-For longer scans, you can use:
+Possible `Type` values:
 
-- `--time-preset standard` for 180 days
-- `--time-preset long` for 1 year
-- `--time-preset very-long` for 2 years
-- `--age 3y` or any custom value when you want a longer exact threshold
+- `file`
+- `folder`
+- `software`
 
-Reason labels:
+Possible `Reason` values:
 
-- `old-file` means a regular file that appears old or unused
-- `old-folder` means a regular folder that appears old or unused
-- `cache-log` means a cache/log/temp-style folder that is often low-value cleanup material
+- `old-file`
+- `old-folder`
+- `old-software`
+- `cache-log`
+- `review`
+
+Reason meaning:
+
+- `old-file` means an old or unused regular file
+- `old-folder` means an old or unused regular folder
+- `old-software` means an old or unused app bundle
+- `cache-log` means a cache, log, or temp-style folder that may be low-value cleanup material
 - `review` means the folder name matches a small set of potentially unwanted patterns and should be inspected manually
 
-`review` is not malware detection. It is only a cautious hint to inspect the folder before deleting it.
+`review` is not malware detection. It is only a cautious flag for manual review.
+
+## Notes
+
+- `--system-scan` can be slower because it walks larger `Library` locations
+- very large folders such as development workspaces, package caches, and downloads may take longer to scan
+- the tool is designed to help you review candidates, not to auto-detect malware with certainty
 
 ## Landing Page
 
-A minimalist landing page is available at `index.html`.
-
-Open it in a browser to preview the project overview.
+A simple landing page is available in `index.html`.
