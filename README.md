@@ -1,6 +1,6 @@
 # ALIAI
 
-A simple CLI tool to find old files and software you have not used for a long time, then optionally move selected items to Trash.
+A simple CLI tool to find old files, old folders, and software you have not used for a long time, then optionally move selected items to Trash.
 
 ## Welcome Message
 
@@ -21,6 +21,15 @@ Use `--large-scan` to also scan:
 - `~/Movies`
 - `~/Music`
 - `~/Public`
+
+Use `--system-scan` to also inspect:
+
+- `~/Library/Caches`
+- `~/Library/Logs`
+- `~/Library/Application Support`
+- `/Library/Caches`
+- `/Library/Logs`
+- `/Library/Application Support`
 
 ## Requirements
 
@@ -53,10 +62,22 @@ Scan only software you have not used for a long time:
 python3 aliai.py --software-only --age 1y
 ```
 
+Scan old folders too:
+
+```bash
+python3 aliai.py --scan-folders --age 1y
+```
+
 Run a larger scan across more folders:
 
 ```bash
 python3 aliai.py --large-scan
+```
+
+Scan broader user and system cleanup locations:
+
+```bash
+python3 aliai.py --system-scan --time-preset very-long --limit 100
 ```
 
 Use a longer built-in time preset:
@@ -85,7 +106,7 @@ python3 aliai.py --no-apps
 
 ## Output
 
-Results show a `Type` column so you can quickly see whether each match is a regular file or software.
+Results show `Type` and `Reason` columns so you can quickly see whether each match is a file, folder, or software item.
 
 For longer scans, you can use:
 
@@ -93,6 +114,15 @@ For longer scans, you can use:
 - `--time-preset long` for 1 year
 - `--time-preset very-long` for 2 years
 - `--age 3y` or any custom value when you want a longer exact threshold
+
+Reason labels:
+
+- `old-file` means a regular file that appears old or unused
+- `old-folder` means a regular folder that appears old or unused
+- `cache-log` means a cache/log/temp-style folder that is often low-value cleanup material
+- `review` means the folder name matches a small set of potentially unwanted patterns and should be inspected manually
+
+`review` is not malware detection. It is only a cautious hint to inspect the folder before deleting it.
 
 ## Landing Page
 
