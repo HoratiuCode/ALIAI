@@ -2,9 +2,11 @@
 import argparse
 import os
 import shutil
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 DEFAULT_FOLDERS = [
     str(Path.home() / "Documents"),
@@ -60,6 +62,41 @@ class FileCandidate:
     reason: str = "old-file"
 
 
+@dataclass
+class ScanProgress:
+    total_steps: int
+    completed_steps: int = 0
+    last_percent: int = -1
+
+    def update(self, current_path: Path) -> None:
+        self.completed_steps += 1
+        if self.total_steps <= 0:
+            return
+
+        percent = min(100, int((self.completed_steps / self.total_steps) * 100))
+        if percent == self.last_percent:
+            return
+
+        self.last_percent = percent
+        filled = percent // 4
+        bar = "#" * filled + "-" * (25 - filled)
+        short_path = str(current_path)
+        if len(short_path) > 48:
+            short_path = "..." + short_path[-45:]
+        sys.stdout.write(f"\rScanning progress: [{bar}] {percent:>3}%  {short_path:<48}")
+        sys.stdout.flush()
+
+    def finish(self) -> None:
+        if self.total_steps <= 0:
+            return
+        if self.last_percent != 100:
+            self.last_percent = 100
+            bar = "#" * 25
+            sys.stdout.write(f"\rScanning progress: [{bar}] 100%  {'Scan complete':<48}")
+            sys.stdout.flush()
+        print()
+
+
 def format_size(num_bytes: int) -> str:
     units = ["B", "KB", "MB", "GB", "TB"]
     size = float(num_bytes)
@@ -86,11 +123,31 @@ def classify_folder_reason(path: Path) -> str:
     return "old-folder"
 
 
+def count_walk_steps(folder: Path, include_hidden: bool, apps_only: bool = False) -> int:
+    if not folder.exists() or not folder.is_dir():
+        return 0
+
+    steps = 0
+    for root, dirs, files in os.walk(folder):
+        if not include_hidden:
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            if not apps_only:
+                files = [f for f in files if not f.startswith('.')]
+
+        steps += 1
+
+        if apps_only:
+            dirs[:] = [d for d in dirs if not d.endswith(".app")]
+
+    return steps
+
+
 def scan_folder(
     folder: Path,
     days_unused: int,
     include_hidden: bool,
     include_folders: bool,
+    progress: Optional[ScanProgress] = None,
 ) -> list[FileCandidate]:
     cutoff = datetime.now().timestamp() - days_unused * 86400
     candidates: list[FileCandidate] = []
@@ -105,6 +162,9 @@ def scan_folder(
         if not include_hidden:
             dirs[:] = [d for d in dirs if not d.startswith('.')]
             files = [f for f in files if not f.startswith('.')]
+
+        if progress is not None:
+            progress.update(root_path)
 
         for filename in files:
             file_path = root_path / filename
@@ -167,7 +227,12 @@ def scan_folder(
     return candidates
 
 
-def scan_apps_folder(folder: Path, days_unused: int, include_hidden: bool) -> list[FileCandidate]:
+def scan_apps_folder(
+    folder: Path,
+    days_unused: int,
+    include_hidden: bool,
+    progress: Optional[ScanProgress] = None,
+) -> list[FileCandidate]:
     cutoff = datetime.now().timestamp() - days_unused * 86400
     candidates: list[FileCandidate] = []
 
@@ -179,6 +244,9 @@ def scan_apps_folder(folder: Path, days_unused: int, include_hidden: bool) -> li
 
         if not include_hidden:
             dirs[:] = [d for d in dirs if not d.startswith('.')]
+
+        if progress is not None:
+            progress.update(root_path)
 
         app_dirs = [d for d in dirs if d.endswith(".app")]
         for app_name in app_dirs:
@@ -484,6 +552,25 @@ def print_startup_commands() -> None:
     print("- --help                     Show full help and exit")
 
 
+def build_scan_plan(
+    folders_to_scan: list[str],
+    app_folders: list[str],
+    software_only: bool,
+    no_apps: bool,
+    include_hidden: bool,
+) -> tuple[list[Path], list[Path], int]:
+    file_paths = [] if software_only else [Path(folder).expanduser().resolve() for folder in folders_to_scan]
+    app_paths = [] if no_apps else [Path(folder).expanduser().resolve() for folder in app_folders]
+
+    total_steps = 0
+    for folder_path in file_paths:
+        total_steps += count_walk_steps(folder_path, include_hidden, apps_only=False)
+    for folder_path in app_paths:
+        total_steps += count_walk_steps(folder_path, include_hidden, apps_only=True)
+
+    return file_paths, app_paths, total_steps
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -518,21 +605,35 @@ def main() -> None:
 
     print("Welcome to ALIAI")
     print_startup_commands()
+    print("Preparing scan plan...")
+
+    file_paths, app_paths, total_steps = build_scan_plan(
+        folders_to_scan,
+        args.app_folders,
+        args.software_only,
+        args.no_apps,
+        args.include_hidden,
+    )
+    progress = ScanProgress(total_steps=total_steps)
 
     all_candidates: list[FileCandidate] = []
-    if not args.software_only:
-        for folder in folders_to_scan:
-            folder_path = Path(folder).expanduser().resolve()
-            print(f"Scanning folders/files: {folder_path}")
-            all_candidates.extend(
-                scan_folder(folder_path, days_unused, args.include_hidden, args.scan_folders or args.system_scan)
+    for folder_path in file_paths:
+        print(f"Scanning folders/files: {folder_path}")
+        all_candidates.extend(
+            scan_folder(
+                folder_path,
+                days_unused,
+                args.include_hidden,
+                args.scan_folders or args.system_scan,
+                progress,
             )
+        )
 
-    if not args.no_apps:
-        for folder in args.app_folders:
-            folder_path = Path(folder).expanduser().resolve()
-            print(f"Scanning software: {folder_path}")
-            all_candidates.extend(scan_apps_folder(folder_path, days_unused, args.include_hidden))
+    for folder_path in app_paths:
+        print(f"Scanning software: {folder_path}")
+        all_candidates.extend(scan_apps_folder(folder_path, days_unused, args.include_hidden, progress))
+
+    progress.finish()
 
     all_candidates.sort(key=lambda c: c.atime)
 

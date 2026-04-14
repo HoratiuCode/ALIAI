@@ -2,6 +2,8 @@
 
 A simple CLI tool to find old files, old folders, and software you have not used for a long time, then optionally move selected items to Trash.
 
+Before results are shown, ALIAI now builds a scan plan and displays a percentage loading bar so you can track progress from `0%` to `100%`.
+
 ## Welcome Message
 
 When you start the program, it prints:
@@ -107,6 +109,8 @@ python3 aliai.py --no-apps
 ## Output
 
 Results show `Type` and `Reason` columns so you can quickly see whether each match is a file, folder, or software item.
+
+During scanning, the CLI shows a progress bar with a percentage and the current path being scanned.
 
 For longer scans, you can use:
 
